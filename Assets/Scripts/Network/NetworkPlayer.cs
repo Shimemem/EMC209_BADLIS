@@ -1,15 +1,30 @@
+using System;
 using Fusion;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class NetworkPlayer : NetworkBehaviour
 {
-    [SerializeField] private MeshRenderer meshRenderer;
+    [SerializeField] private MeshRenderer _meshRenderer;
+    
+    [Header("NetworkProperties")]
+    [Networked] public Vector3 NetworkedPosition { get; set; }
+    [Networked] public Color PlayerColor { get; set; }
+    
     
     #region Fusion Callbacks
 
     public override void Spawned()
     {
-        
+        if (HasInputAuthority) //client
+        {
+            
+        }
+
+        if (HasStateAuthority) //server
+        {
+            PlayerColor = Random.ColorHSV();
+        }
     }
 
     public override void Despawned(NetworkRunner runner, bool hasState)
@@ -17,19 +32,51 @@ public class NetworkPlayer : NetworkBehaviour
         
     }
 
-    public override void FixedUpdate()
+    public override void FixedUpdateNetwork()
     {
         if (GetInput(out NetworkInputData input))
         {
-            this.transform.position == new Vector3(input.InputVector.normalized.x, input.InputVector.normalized.y) *
-                Runner.DeltaTime;
+            if (!HasStateAuthority) return;
+            this.transform.position += new Vector3(input.InputVector.normalized.x, 0, input.InputVector.normalized.y) * Runner.DeltaTime; 
+            
+            if (HasStateAuthority)
+            {
+                NetworkedPosition = this.transform.position;
+            }
         }
     }
 
     public override void Render()
     {
-        
+        this.transform.position = NetworkedPosition;
+        if (_meshRenderer != null && _meshRenderer.material.color != PlayerColor)
+        {
+            _meshRenderer.material.color = PlayerColor;
+        }
+    }
+    
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    private void RPC_SetPlayerColor(Color color)
+    {
+        if (HasStateAuthority)
+        {
+            this.PlayerColor = color;
+        }
     }
 
+    #endregion
+    
+    #region Unity Callbacks
+
+    private void Update()
+    {
+        if(!HasInputAuthority) return;
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            var randColor = Random.ColorHSV();
+            RPC_SetPlayerColor(randColor);
+        }
+    }
+    
     #endregion
 }
