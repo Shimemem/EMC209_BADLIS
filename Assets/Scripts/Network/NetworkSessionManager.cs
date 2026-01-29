@@ -5,18 +5,22 @@ using Fusion.Sockets;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
+public class NetworkSessionManager : MonoBehaviour, INetworkRunnerCallbacks
 {
     #region Public Variables
-    
     [SerializeField] private NetworkPrefabRef playerPrefab;
     
+    public static NetworkSessionManager Instance {get; private set; }
     #endregion
     
     #region Private Variables
-
     private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new();
     private NetworkRunner _networkRunner;
+    private List<PlayerRef> _joinedPlayers = new();
+    public IReadOnlyList<PlayerRef> JoinedPlayers => _joinedPlayers;
+    
+    public event Action<PlayerRef> OnPlayerJoinedEvent;
+    public event Action<PlayerRef> OnPlayerLeftEvent;
     
     #endregion
 
@@ -41,10 +45,22 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     
     #region Unity Callbacks
 
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     private void Start()
     {
         #if SERVER
-        StartGame(GameMode.Host);
+        StartGame(GameMode.Server);
         #elif CLIENT
         StartGame(GameMode.Client);
         #endif
@@ -65,16 +81,13 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         if (!runner.IsServer) return;
             var position = Vector3.zero;
-            var networkObject = runner.Spawn(playerPrefab, position, Quaternion.identity, player);
-        _spawnedCharacters.Add(player, networkObject);
+        OnPlayerJoinedEvent?.Invoke(player);
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
         if (!_spawnedCharacters.TryGetValue(player, out var playerObject)) return;
-        
-        runner.Despawn(playerObject);
-        _spawnedCharacters.Remove(player);
+        OnPlayerLeftEvent?.Invoke(player);
     }
     
     #endregion
