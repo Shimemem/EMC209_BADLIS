@@ -22,6 +22,7 @@ namespace Network
         
         private const int maxPlayers = 2;
         private const int timerBeforeStart = 3;
+        private bool hasGameStarted = false;
         #region Networked Properties
         [Networked] public TickTimer RoundStartTimer { get; set; }
         #endregion
@@ -83,6 +84,8 @@ namespace Network
         private void OnGameStarted()
         {
             Debug.Log($"Game Started");
+            if(!hasGameStarted) return;
+            hasGameStarted = true;
             foreach (var playerSpawn in NetworkSessionManager.Instance.JoinedPlayers)
             {
                 var networkObject = Object.Runner.Spawn(playerPrefab, Vector3.zero, Quaternion.identity, playerSpawn);
