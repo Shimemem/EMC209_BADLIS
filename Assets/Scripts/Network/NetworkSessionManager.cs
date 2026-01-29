@@ -80,13 +80,14 @@ public class NetworkSessionManager : MonoBehaviour, INetworkRunnerCallbacks
     public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
         if (!runner.IsServer) return;
-            var position = Vector3.zero;
+        _joinedPlayers.Add(player);
         OnPlayerJoinedEvent?.Invoke(player);
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
-        if (!_spawnedCharacters.TryGetValue(player, out var playerObject)) return;
+        // if (!_spawnedCharacters.TryGetValue(player, out var playerObject)) return;
+        _joinedPlayers.Remove(player);
         OnPlayerLeftEvent?.Invoke(player);
     }
     

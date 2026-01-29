@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using Fusion;
 using TMPro;
+using Unity.VisualScripting;
 
 namespace Network
 {
@@ -21,24 +22,22 @@ namespace Network
         
         private const int maxPlayers = 2;
         private const int timerBeforeStart = 3;
-
-        // private void Awake()
-        // {
-        //     _networkSessionManager = GetComponent<NetworkSessionManager>();
-        // }
-
+        #region Networked Properties
+        [Networked] public TickTimer RoundStartTimer { get; set; }
+        #endregion
+        
         public override void Spawned()
         {
             base.Spawned();
-            _networkSessionManager.OnPlayerJoinedEvent += OnPlayerJoined;
-            _networkSessionManager.OnPlayerLeftEvent += OnPlayerLeft;
+            NetworkSessionManager.Instance.OnPlayerJoinedEvent += OnPlayerJoined;
+            NetworkSessionManager.Instance.OnPlayerLeftEvent += OnPlayerLeft;
         }
 
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
             base.Despawned(runner, hasState);
-            _networkSessionManager.OnPlayerJoinedEvent -= OnPlayerJoined;
-            _networkSessionManager.OnPlayerLeftEvent -= OnPlayerLeft;
+            NetworkSessionManager.Instance.OnPlayerJoinedEvent -= OnPlayerJoined;
+            NetworkSessionManager.Instance.OnPlayerLeftEvent -= OnPlayerLeft;
         }
 
         public override void FixedUpdateNetwork()
@@ -46,6 +45,20 @@ namespace Network
             base.FixedUpdateNetwork();
             
             _playerCountText.text = $"Players: {Object.Runner.ActivePlayers.Count()}/{maxPlayers}";
+
+            if (RoundStartTimer.IsRunning)
+            {
+                _timerCountText.text = RoundStartTimer.RemainingTime(Object.Runner).ToString();
+            }
+            else
+            {
+                _timerCountText.text = "";
+            }
+
+            if (RoundStartTimer.Expired(Object.Runner))
+            {
+                OnGameStarted();
+            }
         }
 
         private void OnPlayerJoined(PlayerRef player)
@@ -54,7 +67,7 @@ namespace Network
             if (NetworkSessionManager.Instance.JoinedPlayers.Count >= maxPlayers)
             {
                 // start game count down and then spawn
-                OnGameStarted();
+                RoundStartTimer = TickTimer.CreateFromSeconds(Object.Runner, timerBeforeStart);
             }
             Debug.Log($"Player {player.PlayerId} Joined");
         }
